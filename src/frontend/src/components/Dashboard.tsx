@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -7,19 +8,21 @@ import {
   Loader2,
   LogOut,
   Plus,
+  SlidersHorizontal,
   Utensils,
   UtensilsCrossed,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { UserProfile } from "../backend";
+import { useCalorieGoal } from "../hooks/useCalorieGoal";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useGetAllMeals, useGetDailySummary } from "../hooks/useQueries";
 import { CalorieRing } from "./CalorieRing";
+import { GoalSettingsDialog } from "./GoalSettingsDialog";
 import { LogMealDialog } from "./LogMealDialog";
 import { MealCard } from "./MealCard";
-
-const DAILY_GOAL = 2000;
+import { WeeklyChart } from "./WeeklyChart";
 
 interface DashboardProps {
   userProfile: UserProfile;
@@ -27,8 +30,10 @@ interface DashboardProps {
 
 export function Dashboard({ userProfile }: DashboardProps) {
   const [logMealOpen, setLogMealOpen] = useState(false);
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const { clear } = useInternetIdentity();
   const queryClient = useQueryClient();
+  const { goal, setGoal } = useCalorieGoal();
 
   const mealsQuery = useGetAllMeals();
   const summaryQuery = useGetDailySummary();
@@ -60,10 +65,20 @@ export function Dashboard({ userProfile }: DashboardProps) {
             Calorie<span className="text-primary">Lens</span>
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground hidden sm:block">
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground hidden sm:block mr-2">
             {userProfile.name}
           </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setGoalDialogOpen(true)}
+            className="w-8 h-8 text-muted-foreground hover:text-foreground"
+            title="Set calorie goal"
+            data-ocid="header.settings_button"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -146,15 +161,11 @@ export function Dashboard({ userProfile }: DashboardProps) {
                     transform: "translate(-50%, -50%)",
                   }}
                 />
-                <CalorieRing
-                  consumed={totalCalories}
-                  goal={DAILY_GOAL}
-                  size={180}
-                />
+                <CalorieRing consumed={totalCalories} goal={goal} size={180} />
 
                 {/* Goal label */}
                 <p className="text-xs text-muted-foreground -mt-2">
-                  Daily goal: {DAILY_GOAL.toLocaleString()} kcal
+                  Daily goal: {goal.toLocaleString()} kcal
                 </p>
               </motion.div>
 
@@ -189,44 +200,70 @@ export function Dashboard({ userProfile }: DashboardProps) {
                 </div>
               </motion.div>
 
-              {/* Meal history */}
+              {/* Today / Week tabs */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25, duration: 0.4 }}
-                className="space-y-3"
               >
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display font-bold text-base">
-                    Meal History
-                  </h2>
-                  <span className="text-xs text-muted-foreground">
-                    {meals.length} total
-                  </span>
-                </div>
+                <Tabs defaultValue="today">
+                  <TabsList className="w-full mb-4">
+                    <TabsTrigger
+                      value="today"
+                      className="flex-1"
+                      data-ocid="dashboard.today_tab"
+                    >
+                      Today
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="week"
+                      className="flex-1"
+                      data-ocid="dashboard.week_tab"
+                    >
+                      This Week
+                    </TabsTrigger>
+                  </TabsList>
 
-                {sortedMeals.length === 0 ? (
-                  <div
-                    className="flex flex-col items-center gap-3 py-12 text-center bg-card border border-dashed border-border rounded-2xl"
-                    data-ocid="meal_history.empty_state"
-                  >
-                    <UtensilsCrossed className="w-10 h-10 text-muted-foreground/40" />
-                    <div>
-                      <p className="font-semibold text-muted-foreground">
-                        No meals logged yet
-                      </p>
-                      <p className="text-sm text-muted-foreground/60 mt-1">
-                        Tap &ldquo;Log Meal&rdquo; to record your first meal
-                      </p>
+                  {/* Today tab — meal list */}
+                  <TabsContent value="today" className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-display font-bold text-base">
+                        Meal History
+                      </h2>
+                      <span className="text-xs text-muted-foreground">
+                        {meals.length} total
+                      </span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2" data-ocid="meal_history.list">
-                    {sortedMeals.map((meal, i) => (
-                      <MealCard key={meal.id} meal={meal} index={i + 1} />
-                    ))}
-                  </div>
-                )}
+
+                    {sortedMeals.length === 0 ? (
+                      <div
+                        className="flex flex-col items-center gap-3 py-12 text-center bg-card border border-dashed border-border rounded-2xl"
+                        data-ocid="meal_history.empty_state"
+                      >
+                        <UtensilsCrossed className="w-10 h-10 text-muted-foreground/40" />
+                        <div>
+                          <p className="font-semibold text-muted-foreground">
+                            No meals logged yet
+                          </p>
+                          <p className="text-sm text-muted-foreground/60 mt-1">
+                            Tap &ldquo;Log Meal&rdquo; to record your first meal
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2" data-ocid="meal_history.list">
+                        {sortedMeals.map((meal, i) => (
+                          <MealCard key={meal.id} meal={meal} index={i + 1} />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Week tab — weekly chart */}
+                  <TabsContent value="week">
+                    <WeeklyChart meals={meals} goal={goal} />
+                  </TabsContent>
+                </Tabs>
               </motion.div>
             </motion.div>
           </AnimatePresence>
@@ -246,6 +283,12 @@ export function Dashboard({ userProfile }: DashboardProps) {
       </div>
 
       <LogMealDialog open={logMealOpen} onClose={() => setLogMealOpen(false)} />
+      <GoalSettingsDialog
+        open={goalDialogOpen}
+        onClose={() => setGoalDialogOpen(false)}
+        goal={goal}
+        onSave={setGoal}
+      />
     </div>
   );
 }

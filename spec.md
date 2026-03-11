@@ -1,41 +1,27 @@
 # Calorie Tracker
 
 ## Current State
-New project with no existing code.
+- Dashboard shows a calorie ring, today's total/meal count stats, and a meal history list
+- Daily goal is hardcoded to 2000 kcal in Dashboard.tsx as `const DAILY_GOAL = 2000`
+- Backend has `getAllMeals` (returns all meals with timestamps) and `getDailySummary` (returns today's totals)
+- No weekly view exists
 
 ## Requested Changes (Diff)
 
 ### Add
-- Meal logging: user takes or uploads a photo of their meal
-- Calorie estimation: photo is sent to an AI vision API (via HTTP outcall) which returns estimated calories and a meal name
-- Meal history: list of all logged meals with photo, name, calories, and timestamp
-- Daily summary: total calories consumed today
-- Delete meal: remove a logged meal from history
+- **Custom daily calorie goal**: A settings button/icon in the header that opens a dialog to set and save the daily calorie goal. Stored in localStorage so it persists without backend changes.
+- **Weekly history view**: A toggle/tabs on the dashboard to switch between "Today" and "Week" views. The week view shows the past 7 days as a bar chart (using Recharts/chart.tsx) with daily calorie totals derived from `getAllMeals` data grouped by day. Highlights days over/under goal.
 
 ### Modify
-- N/A
+- Dashboard.tsx: Replace hardcoded `DAILY_GOAL = 2000` with value read from localStorage (defaulting to 2000). Wire goal to CalorieRing and goal label.
+- Dashboard header: Add a settings (gear) icon button to open the goal-setting dialog.
+- Dashboard layout: Add Today/Week tab switcher.
 
 ### Remove
-- N/A
+- Nothing removed.
 
 ## Implementation Plan
-1. Backend (Motoko):
-   - Data model: `Meal { id, userId, imageUrl, mealName, calories, timestamp }`
-   - `addMeal(imageData: Blob, mimeType: Text) -> async Result<Meal, Text>` -- stores image, calls HTTP outcall to Google Gemini Vision API to estimate calories and meal name, saves and returns meal record
-   - `getMeals() -> async [Meal]` -- returns all meals for the calling user
-   - `deleteMeal(id: Nat) -> async Result<(), Text>` -- deletes a meal by id
-   - `getDailySummary() -> async { totalCalories: Nat; mealCount: Nat }` -- returns today's totals for the calling user
-
-2. Components:
-   - `camera` -- for capturing meal photos in-browser
-   - `blob-storage` -- for storing meal images
-   - `http-outcalls` -- for calling Gemini Vision API to analyze meal photos
-   - `authorization` -- for per-user meal tracking
-
-3. Frontend:
-   - Home screen with daily calorie summary ring/progress
-   - "Log Meal" button opens camera or file upload
-   - After capture, shows loading state while AI estimates calories
-   - Displays result (meal name + calories) with confirm/cancel
-   - Scrollable meal history list with photo thumbnail, name, calories, time
-   - Delete meal from history
+1. Create `useCalorieGoal` hook: reads/writes goal to localStorage, defaults to 2000.
+2. Create `GoalSettingsDialog` component: input field for goal kcal, save button, cancel button.
+3. Create `WeeklyChart` component: uses the existing chart.tsx (Recharts) to show 7-day bar chart of daily calories vs goal line.
+4. Update `Dashboard.tsx`: add Today/Week tabs, import and use `useCalorieGoal`, add settings button in header, render `WeeklyChart` in week tab, pass dynamic goal to `CalorieRing`.
